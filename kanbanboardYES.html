@@ -1,0 +1,1477 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TeamBoard</title>
+<meta name="description" content="TeamBoard: a simple, accessible Kanban board for small software teams. Medium fidelity prototype.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --scale: 1;
+  --accent: #1f5fbf;
+  --accent-hover: #1a51a2;
+  --on-accent: #ffffff;
+  --bg: #f4f6f8;
+  --surface: #ffffff;
+  --surface-2: #eef1f4;
+  --text: #1a1f26;
+  --muted: #4b5563;
+  --border: #d8dde3;
+  --border-strong: #6b7280;
+  --link: var(--accent);
+  --focus: var(--accent);
+  --danger: #b42318;
+  --danger-text: #b42318;
+  --error-bg: #fdecea;
+  --success-bg: #e7f5ec;
+  --success-text: #14532d;
+  --req: #9a3412;
+  --req-ink: #ffffff;
+  --radius: 0.5rem;
+  --radius-lg: 0.75rem;
+  --shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.1);
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --target: 2.75rem; /* 44px minimum touch target, above the 24px in NFR1 */
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111418;
+    --surface: #1a1f26;
+    --surface-2: #232a33;
+    --text: #e7eaee;
+    --muted: #a9b1bc;
+    --border: #2f3843;
+    --border-strong: #8a94a3;
+    --link: #9cc0ff;
+    --focus: #9cc0ff;
+    --danger-text: #ff9b8f;
+    --error-bg: #3a1d1b;
+    --success-bg: #16301f;
+    --success-text: #a7e3b9;
+    --req: #fdba74;
+    --req-ink: #1a1f26;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111418; --surface: #1a1f26; --surface-2: #232a33; --text: #e7eaee; --muted: #a9b1bc;
+  --border: #2f3843; --border-strong: #8a94a3; --link: #9cc0ff; --focus: #9cc0ff; --danger-text: #ff9b8f;
+  --error-bg: #3a1d1b; --success-bg: #16301f; --success-text: #a7e3b9; --req: #fdba74; --req-ink: #1a1f26;
+  color-scheme: dark;
+}
+
+/* Text size (FR6). */
+html { font-size: calc(100% * var(--scale)); }
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 1rem;
+  line-height: 1.55;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+h1, h2, h3 { line-height: 1.25; margin: 0 0 var(--space-3); }
+h1 { font-size: 1.85rem; }
+h2 { font-size: 1.3rem; }
+h3 { font-size: 1.05rem; }
+p { margin: 0 0 var(--space-3); }
+a { color: var(--link); text-underline-offset: 0.15em; }
+a:hover { text-decoration-thickness: 2px; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: 0.25rem; }
+h1:focus, main:focus { outline: none; }
+.sr-only {
+  position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+.wrap { width: 100%; max-width: 72rem; margin: 0 auto; padding: 0 var(--space-4); }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
+}
+
+/* Skip link (NFR2) */
+.skip {
+  position: absolute; left: var(--space-4); top: -10rem; z-index: 100;
+  background: var(--accent); color: var(--on-accent); padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius); font-weight: 700; text-decoration: none;
+}
+.skip:focus { top: var(--space-3); }
+
+/* ---------- Header and navigation (NFR3: identical on every page) ---------- */
+.top { background: var(--surface); border-bottom: 1px solid var(--border); }
+.top-inner {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-5);
+  padding-top: var(--space-3); padding-bottom: var(--space-3);
+}
+.brand {
+  display: inline-flex; align-items: center; gap: var(--space-2); font-weight: 700; font-size: 1.2rem;
+  color: var(--text); text-decoration: none; min-height: var(--target);
+}
+.logo {
+  display: inline-grid; place-items: center; width: 2rem; height: 2rem; border-radius: 0.45rem;
+  background: var(--accent); color: var(--on-accent); font-size: 1.1rem;
+}
+.team-name { font-weight: 400; font-size: 0.95rem; color: var(--muted); padding-left: var(--space-2); border-left: 1px solid var(--border); }
+nav ul { list-style: none; display: flex; flex-wrap: wrap; gap: var(--space-1); margin: 0; padding: 0; }
+nav a {
+  display: inline-flex; align-items: center; min-height: var(--target); padding: 0 var(--space-3);
+  border-radius: var(--radius); color: var(--text); text-decoration: none; font-weight: 700;
+}
+nav a:hover { background: var(--surface-2); }
+nav a[aria-current="page"] { background: var(--surface-2); box-shadow: inset 0 -3px 0 var(--accent); }
+.tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); margin-left: auto; }
+.textsize { display: inline-flex; align-items: center; gap: var(--space-1); }
+.ts-label { font-size: 0.9rem; color: var(--muted); margin-right: var(--space-1); }
+.ts-value { min-width: 3.2rem; text-align: center; font-variant-numeric: tabular-nums; font-size: 0.9rem; }
+.who { display: inline-flex; align-items: center; gap: var(--space-2); font-size: 0.95rem; }
+
+/* ---------- Buttons and form controls ---------- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
+  min-height: var(--target); padding: var(--space-2) var(--space-4);
+  font: inherit; font-weight: 700; line-height: 1.2; border-radius: var(--radius);
+  border: 2px solid transparent; cursor: pointer; text-decoration: none; white-space: nowrap;
+}
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.btn.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+.btn.secondary { background: var(--surface); border-color: var(--border-strong); color: var(--text); }
+.btn.secondary:hover { background: var(--surface-2); }
+.btn.danger { background: var(--danger); border-color: var(--danger); color: #ffffff; }
+.btn.danger:hover { filter: brightness(0.92); }
+.btn.ghost-danger { background: transparent; border-color: currentColor; color: var(--danger-text); }
+.btn.ghost-danger:hover { background: var(--error-bg); }
+.btn.small { min-height: 2.25rem; padding: var(--space-1) var(--space-3); font-size: 0.9rem; }
+.btn[disabled] { opacity: 0.55; cursor: not-allowed; }
+.btn.link-like { background: none; border: none; color: var(--link); text-decoration: underline; padding: 0 var(--space-1); min-height: 2.25rem; font-weight: 700; }
+
+.field { margin-bottom: var(--space-4); }
+label, legend { display: block; font-weight: 700; margin-bottom: var(--space-1); }
+.optional { font-weight: 400; color: var(--muted); }
+.hint { color: var(--muted); font-size: 0.92rem; margin: 0 0 var(--space-2); }
+input[type="text"], input[type="email"], input[type="password"], select, textarea {
+  width: 100%; min-height: var(--target); padding: var(--space-2) var(--space-3);
+  font: inherit; color: var(--text); background: var(--surface);
+  border: 2px solid var(--border-strong); border-radius: var(--radius);
+}
+textarea { min-height: 6rem; resize: vertical; }
+input[aria-invalid="true"], select[aria-invalid="true"], textarea[aria-invalid="true"] {
+  border-color: var(--danger-text); box-shadow: 0 0 0 1px var(--danger-text);
+}
+.field-error { color: var(--danger-text); font-weight: 700; margin: var(--space-1) 0 0; }
+.form-error {
+  background: var(--error-bg); color: var(--danger-text); border-left: 4px solid var(--danger-text);
+  padding: var(--space-3); border-radius: var(--radius); font-weight: 700;
+}
+.pw-row { display: flex; gap: var(--space-2); }
+.pw-row input { flex: 1; min-width: 0; }
+fieldset { border: none; padding: 0; margin: 0 0 var(--space-4); min-width: 0; }
+.actions { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+
+/* ---------- Layout pieces ---------- */
+main { flex: 1; padding: var(--space-6) 0; }
+.card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  padding: var(--space-5); box-shadow: var(--shadow); margin-bottom: var(--space-5);
+}
+.page-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-5); }
+.page-head p { margin: 0; }
+.lead { color: var(--muted); font-size: 1.05rem; }
+.grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); gap: var(--space-5); }
+.grid-2 > .card { margin-bottom: 0; }
+.grid-team { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: var(--space-5); align-items: start; }
+.grid-team > .card { margin-bottom: 0; }
+.meta { display: flex; flex-wrap: wrap; gap: var(--space-3) var(--space-6); margin: var(--space-4) 0 0; }
+.meta dt { font-size: 0.85rem; color: var(--muted); }
+.meta dd { margin: 0; font-weight: 700; }
+.foot { border-top: 1px solid var(--border); padding: var(--space-4) 0; color: var(--muted); font-size: 0.9rem; background: var(--surface); }
+
+/* Sign-in */
+.auth { max-width: 30rem; margin: 0 auto; }
+.demo { background: var(--surface-2); border: 1px dashed var(--border-strong); border-radius: var(--radius-lg); padding: var(--space-4); margin-bottom: var(--space-5); }
+.demo h2 { font-size: 1.05rem; }
+.demo dl { display: grid; grid-template-columns: auto 1fr; gap: var(--space-1) var(--space-3); margin: 0 0 var(--space-3); }
+.demo dt { color: var(--muted); }
+.demo dd { margin: 0; font-weight: 700; word-break: break-all; }
+
+/* Avatars and badges (decorative) */
+.avatar {
+  flex: none; display: inline-grid; place-items: center; width: 2.25rem; height: 2.25rem; border-radius: 50%;
+  background: var(--surface-2); border: 1px solid var(--border); font-weight: 700; font-size: 0.8rem; color: var(--text);
+}
+.role-badge {
+  display: inline-block; padding: 0.1rem 0.55rem; border-radius: 999px; font-size: 0.82rem; font-weight: 700;
+  background: var(--surface-2); color: var(--text); border: 1px solid var(--border-strong);
+}
+.you { font-weight: 400; color: var(--muted); }
+
+/* Team list (a list rather than a table, so it reflows at large text sizes) */
+.members { list-style: none; margin: 0; padding: 0; }
+.member {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) 0; border-bottom: 1px solid var(--border);
+}
+.member:last-child { border-bottom: none; }
+.m-info { flex: 1 1 12rem; min-width: 0; }
+.m-info p { margin: 0; }
+.m-name { font-weight: 700; }
+.m-email { font-size: 0.92rem; word-break: break-all; }
+.m-actions { display: flex; gap: var(--space-2); }
+
+/* Progress */
+.stat-list { list-style: none; padding: 0; margin: 0 0 var(--space-4); display: grid; grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)); gap: var(--space-2); }
+.stat-list li { background: var(--surface-2); border-radius: var(--radius); padding: var(--space-2) var(--space-3); }
+.stat-list .n { display: block; font-size: 1.5rem; font-weight: 700; }
+.stat-list .l { font-size: 0.9rem; color: var(--muted); }
+progress { width: 100%; height: 0.9rem; accent-color: var(--accent); }
+.team-mini { list-style: none; padding: 0; margin: 0 0 var(--space-4); }
+.team-mini li { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) 0; }
+
+/* ---------- Kanban board ---------- */
+.add-ticket { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); gap: 0 var(--space-4); align-items: end; }
+.add-ticket h2 { grid-column: 1 / -1; }
+.add-ticket .btn { margin-bottom: var(--space-4); }
+.board { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: var(--space-4); align-items: start; }
+.column {
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  padding: var(--space-3); min-height: 12rem; border-top: 4px solid var(--col, var(--border-strong));
+}
+.column[data-status="todo"] { --col: #6b7280; }
+.column[data-status="progress"] { --col: #b3470f; }
+.column[data-status="review"] { --col: #6b3fa0; }
+.column[data-status="done"] { --col: #1a7f37; }
+.column h2 { display: flex; align-items: center; justify-content: space-between; font-size: 1.05rem; }
+.count { background: var(--surface); border: 1px solid var(--border-strong); border-radius: 999px; padding: 0 0.55rem; font-size: 0.85rem; }
+.column.drag-over { outline: 3px dashed var(--focus); outline-offset: -3px; }
+.cards { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); min-height: 3rem; }
+.ticket {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: var(--space-3); box-shadow: var(--shadow); cursor: grab;
+}
+.ticket.dragging { opacity: 0.5; }
+.ticket h3 { font-size: 1rem; margin-bottom: var(--space-2); overflow-wrap: anywhere; }
+.t-assignee { display: flex; align-items: center; gap: var(--space-2); font-size: 0.9rem; color: var(--muted); margin-bottom: var(--space-3); }
+.t-assignee .avatar { width: 1.75rem; height: 1.75rem; font-size: 0.7rem; }
+.t-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.empty { color: var(--muted); font-size: 0.92rem; font-style: italic; margin: var(--space-2) 0 0; }
+
+/* ---------- Settings ---------- */
+.size-options { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.choice {
+  display: inline-flex; align-items: center; gap: var(--space-2); min-height: var(--target);
+  padding: var(--space-2) var(--space-3); border: 2px solid var(--border-strong); border-radius: var(--radius);
+  font-weight: 400; cursor: pointer; margin: 0; background: var(--surface);
+}
+.choice:has(input:checked) { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); font-weight: 700; }
+.choice input { width: 1.15rem; height: 1.15rem; margin: 0; accent-color: var(--accent); }
+.swatch { width: 1.4rem; height: 1.4rem; border-radius: 50%; border: 1px solid rgba(0, 0, 0, 0.25); flex: none; }
+.custom-row { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+.custom-row input[type="text"] { flex: 1 1 10rem; width: auto; }
+input[type="color"] { width: 3.25rem; height: var(--target); padding: 0.2rem; border: 2px solid var(--border-strong); border-radius: var(--radius); background: var(--surface); cursor: pointer; }
+.preview {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); padding: var(--space-4);
+  border-radius: var(--radius); background: var(--surface-2); margin-bottom: var(--space-4);
+}
+.preview p { margin: 0; }
+.pass { color: var(--success-text); font-weight: 700; }
+.fail { color: var(--danger-text); font-weight: 700; }
+.sample-text { font-size: 1.05rem; padding: var(--space-3); background: var(--surface-2); border-radius: var(--radius); }
+.kv { display: grid; grid-template-columns: max-content 1fr; gap: var(--space-2) var(--space-4); margin: 0 0 var(--space-3); }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; font-weight: 700; word-break: break-all; }
+
+/* Requirements map */
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.95rem; }
+th, td { text-align: left; vertical-align: top; padding: var(--space-3); border-bottom: 1px solid var(--border); }
+th { background: var(--surface-2); }
+td:first-child { font-weight: 700; white-space: nowrap; }
+.tag { display: inline-block; font-size: 0.78rem; font-weight: 700; border-radius: 999px; padding: 0 0.5rem; background: var(--req); color: var(--req-ink); }
+
+/* ---------- Toast and dialogs ---------- */
+.toast {
+  position: fixed; left: 50%; bottom: var(--space-5); transform: translateX(-50%); z-index: 50;
+  max-width: min(36rem, calc(100vw - 2rem)); background: var(--text); color: var(--bg);
+  padding: var(--space-3) var(--space-5); border-radius: var(--radius); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  font-weight: 700;
+}
+.toast:empty { display: none; }
+dialog {
+  border: none; border-radius: var(--radius-lg); padding: var(--space-5);
+  width: min(32rem, calc(100vw - 2rem)); background: var(--surface); color: var(--text);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+}
+dialog::backdrop { background: rgba(10, 14, 20, 0.55); }
+.dlg-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-4); }
+
+/* ---------- Requirement labels overlay (extra feature for marking) ---------- */
+body.show-reqs [data-req] { outline: 2px dashed var(--req); outline-offset: 4px; position: relative; }
+body.show-reqs [data-req]::after {
+  content: attr(data-req); position: absolute; top: -0.8rem; right: 0.5rem; z-index: 20;
+  background: var(--req); color: var(--req-ink); font: 700 0.72rem/1.4 "Atkinson Hyperlegible", system-ui, sans-serif;
+  padding: 0.05rem 0.5rem; border-radius: 999px; white-space: nowrap; pointer-events: none; letter-spacing: 0.01em;
+}
+.reqs-banner { display: none; background: var(--req); color: var(--req-ink); font-weight: 700; text-align: center; padding: var(--space-2) var(--space-4); font-size: 0.92rem; }
+body.show-reqs .reqs-banner { display: block; }
+
+@media (max-width: 40rem) {
+  h1 { font-size: 1.55rem; }
+  .card { padding: var(--space-4); }
+  .tools { margin-left: 0; }
+  .ts-label { display: none; }
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#main" data-action="skip">Skip to main content</a>
+<div class="reqs-banner" role="note">Requirement labels are on. Each dashed outline shows which requirement that part of the page meets.</div>
+<div id="app"></div>
+<div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+<dialog id="dlg"></dialog>
+
+<script>
+(() => {
+  'use strict';
+
+  /* =========================================================
+     CONSTANTS
+     ========================================================= */
+  const ROLES = ['Developer', 'Designer', 'Tester'];
+  const STATUSES = [
+    { id: 'todo', label: 'To do' },
+    { id: 'progress', label: 'In progress' },
+    { id: 'review', label: 'Review' },
+    { id: 'done', label: 'Done' }
+  ];
+  const SCALES = [0.875, 1, 1.125, 1.25, 1.5, 1.75, 2]; // FR6: 87.5% to 200%
+  const DEFAULT_ACCENT = '#1f5fbf'; // DR9: default passes 6.1:1 with white text
+  const PRESETS = [
+    { name: 'Blue (default)', hex: '#1f5fbf' },
+    { name: 'Teal', hex: '#0f6b6b' },
+    { name: 'Purple', hex: '#6b3fa0' },
+    { name: 'Green', hex: '#1a7f37' },
+    { name: 'Rust', hex: '#b3470f' },
+    { name: 'Raspberry', hex: '#a3195b' }
+  ];
+  const MIN_CONTRAST = 4.5; // WCAG 2.2 AA for normal text
+  const SESSION_HOURS = 8;
+  // DR10: the HTML standard's email pattern, plus a dot in the domain.
+  const EMAIL_RE = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+  const DEMO = { email: 'james@teamboard.demo', password: 'demo1234' };
+
+  /* =========================================================
+     HELPERS
+     ========================================================= */
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const uid = () => (window.crypto && crypto.randomUUID ? crypto.randomUUID() : 'id-' + Math.random().toString(36).slice(2) + Date.now().toString(36));
+  const nowIso = () => new Date().toISOString();
+  const initials = (name) => name.trim().split(/\s+/).slice(0, 2).map((p) => p[0].toUpperCase()).join('');
+  const fmtDate = (iso) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+  // NFR7: passwords are hashed (SHA-256, salted with the email), never stored as plain text.
+  async function hashPassword(email, password) {
+    const data = new TextEncoder().encode(email.trim().toLowerCase() + ':' + password);
+    if (window.crypto && crypto.subtle) {
+      const buf = await crypto.subtle.digest('SHA-256', data);
+      return 'sha256:' + Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('');
+    }
+    let h = 2166136261;
+    for (const b of data) { h ^= b; h = Math.imul(h, 16777619) >>> 0; }
+    return 'fnv:' + h.toString(16);
+  }
+
+  // FR7 / NFR1: WCAG relative luminance and contrast ratio.
+  function luminance(hex) {
+    const n = parseInt(hex.slice(1), 16);
+    const ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => {
+      v /= 255;
+      return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
+  }
+  function contrast(a, b) {
+    const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+    return (hi + 0.05) / (lo + 0.05);
+  }
+  function darken(hex, amount) {
+    const n = parseInt(hex.slice(1), 16);
+    const ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => Math.round(v * (1 - amount)));
+    return '#' + ch.map((v) => v.toString(16).padStart(2, '0')).join('');
+  }
+  const normaliseHex = (v) => {
+    let s = String(v || '').trim().toLowerCase();
+    if (!s.startsWith('#')) s = '#' + s;
+    if (/^#[0-9a-f]{3}$/.test(s)) s = '#' + s.slice(1).split('').map((c) => c + c).join('');
+    return s;
+  };
+
+  /* =========================================================
+     DATA ACCESS MODULE (NFR4, NFR8 in the brief): every read
+     and write goes through Store, so swapping browser storage
+     for a real API later changes this module only.
+     ========================================================= */
+  const Store = (() => {
+    const KEY = 'teamboard.v1';
+    let db = null;
+    let persistent = true;
+
+    function read() {
+      try { const raw = localStorage.getItem(KEY); return raw ? JSON.parse(raw) : null; }
+      catch (e) { persistent = false; return null; }
+    }
+    function write() {
+      try { localStorage.setItem(KEY, JSON.stringify(db)); }
+      catch (e) { persistent = false; }
+    }
+
+    async function seed() {
+      const t = Date.now();
+      const iso = (daysAgo) => new Date(t - daysAgo * 86400000).toISOString();
+      const team = { id: uid(), name: 'Startup Dev Team', createdAt: iso(21) };
+      const james = {
+        id: uid(), name: 'James Jones', email: DEMO.email,
+        passwordHash: await hashPassword(DEMO.email, DEMO.password), createdAt: iso(21)
+      };
+      const people = [
+        ['Priya Shah', 'priya@teamboard.demo', 'Designer'],
+        ['Tom Evans', 'tom@teamboard.demo', 'Tester'],
+        ['Aisha Khan', 'aisha@teamboard.demo', 'Developer']
+      ].map(([name, email, role], i) => ({ user: { id: uid(), name, email, passwordHash: null, createdAt: iso(20 - i) }, role }));
+      const users = [james, ...people.map((p) => p.user)];
+      const memberships = [
+        { userId: james.id, teamId: team.id, role: 'Developer', joinedAt: iso(21) },
+        ...people.map((p, i) => ({ userId: p.user.id, teamId: team.id, role: p.role, joinedAt: iso(20 - i) }))
+      ];
+      const project = {
+        id: uid(), teamId: team.id, name: 'Website Relaunch',
+        description: 'Rebuild the company website so customers can book a product demo online. The first release covers the homepage, sign-in and the booking form.',
+        createdAt: iso(20), updatedAt: iso(2)
+      };
+      const [priya, tom, aisha] = people.map((p) => p.user);
+      const tickets = [
+        ['Set up project repository', 'done', james],
+        ['Design homepage wireframes', 'done', priya],
+        ['Choose colour palette and fonts', 'review', priya],
+        ['Build sign-in page', 'review', james],
+        ['Create booking form component', 'progress', aisha],
+        ['Write test plan for booking form', 'progress', tom],
+        ['Connect booking form to email service', 'todo', null],
+        ['Run accessibility audit with axe', 'todo', tom]
+      ].map(([title, status, who], i) => ({
+        id: uid(), projectId: project.id, title, status, assigneeId: who ? who.id : null, order: i, createdAt: iso(10 - i)
+      }));
+      return { version: 1, users, teams: [team], memberships, projects: [project], tickets, session: null, prefs: {} };
+    }
+
+    return {
+      async init() { db = read(); if (!db || db.version !== 1) { db = await seed(); write(); } },
+      async reset() { db = await seed(); write(); },
+      get persistent() { return persistent; },
+
+      // Users (DR1)
+      userById: (id) => db.users.find((u) => u.id === id) || null,
+      userByEmail: (email) => db.users.find((u) => u.email.toLowerCase() === String(email).trim().toLowerCase()) || null,
+      addUser(u) { db.users.push(u); write(); return u; },
+      updateUser(id, patch) { const u = db.users.find((x) => x.id === id); if (u) Object.assign(u, patch); write(); },
+
+      // Teams (DR3) and memberships (DR5)
+      teamById: (id) => db.teams.find((t) => t.id === id) || null,
+      addTeam(t) { db.teams.push(t); write(); return t; },
+      membershipsForTeam: (teamId) => db.memberships.filter((m) => m.teamId === teamId),
+      membershipForUser: (userId) => db.memberships.find((m) => m.userId === userId) || null,
+      addMembership(m) { db.memberships.push(m); write(); return m; },
+      updateMembership(userId, teamId, patch) {
+        const m = db.memberships.find((x) => x.userId === userId && x.teamId === teamId);
+        if (m) Object.assign(m, patch); write();
+      },
+      removeMember(userId, teamId) {
+        db.memberships = db.memberships.filter((m) => !(m.userId === userId && m.teamId === teamId));
+        // Data requirements: the account goes too if the person is in no other team.
+        if (!db.memberships.some((m) => m.userId === userId)) {
+          db.users = db.users.filter((u) => u.id !== userId);
+          delete db.prefs[userId];
+        }
+        db.tickets.forEach((t) => { if (t.assigneeId === userId) t.assigneeId = null; });
+        write();
+      },
+
+      // Projects (DR4): one per team in this release (FR8)
+      projectForTeam: (teamId) => db.projects.find((p) => p.teamId === teamId) || null,
+      addProject(p) { db.projects.push(p); write(); return p; },
+      updateProject(id, patch) { const p = db.projects.find((x) => x.id === id); if (p) Object.assign(p, patch, { updatedAt: nowIso() }); write(); },
+
+      // Tickets (Kanban board)
+      ticketsForProject: (pid) => db.tickets.filter((t) => t.projectId === pid).sort((a, b) => a.order - b.order),
+      ticketById: (id) => db.tickets.find((t) => t.id === id) || null,
+      addTicket(t) { db.tickets.push(t); write(); return t; },
+      updateTicket(id, patch) { const t = db.tickets.find((x) => x.id === id); if (t) Object.assign(t, patch); write(); },
+      removeTicket(id) { db.tickets = db.tickets.filter((t) => t.id !== id); write(); },
+      touchProject(pid) { const p = db.projects.find((x) => x.id === pid); if (p) p.updatedAt = nowIso(); write(); },
+
+      // Session (DR2)
+      session: () => db.session,
+      setSession(s) { db.session = s; write(); },
+      clearSession() { db.session = null; write(); },
+
+      // Preferences (DR7, DR8)
+      prefs: (key) => Object.assign({ scale: 1, accent: DEFAULT_ACCENT }, db.prefs[key] || {}),
+      setPrefs(key, patch) { db.prefs[key] = Object.assign({ scale: 1, accent: DEFAULT_ACCENT }, db.prefs[key] || {}, patch); write(); },
+
+      // UI state that should survive a refresh
+      ui: (k, fallback) => (db.ui && k in db.ui ? db.ui[k] : fallback),
+      setUi(k, v) { db.ui = db.ui || {}; db.ui[k] = v; write(); }
+    };
+  })();
+
+  /* =========================================================
+     AUTHENTICATION (FR1). Client-side for the prototype and
+     kept in one place so a real identity service can replace it.
+     ========================================================= */
+  const Auth = {
+    current() {
+      const s = Store.session();
+      if (!s) return null;
+      if (Date.parse(s.expiresAt) < Date.now()) {
+        Store.clearSession();
+        queueToast('Your session expired. Please sign in again.');
+        return null;
+      }
+      return Store.userById(s.userId);
+    },
+    async signIn(email, password) {
+      const user = Store.userByEmail(email);
+      if (!user || !user.passwordHash) return null;
+      const hash = await hashPassword(email, password);
+      if (hash !== user.passwordHash) return null;
+      Store.setSession({
+        userId: user.id, token: uid(),
+        createdAt: nowIso(), expiresAt: new Date(Date.now() + SESSION_HOURS * 3600000).toISOString()
+      });
+      return user;
+    },
+    signOut() { Store.clearSession(); }
+  };
+
+  function context() {
+    const user = Auth.current();
+    if (!user) return null;
+    const membership = Store.membershipForUser(user.id);
+    const team = membership ? Store.teamById(membership.teamId) : null;
+    const project = team ? Store.projectForTeam(team.id) : null;
+    return { user, membership, team, project };
+  }
+
+  /* =========================================================
+     PREFERENCES (FR6, FR7)
+     ========================================================= */
+  function prefKey() { const s = Store.session(); return s ? s.userId : 'guest'; }
+  function currentPrefs() { return Store.prefs(prefKey()); }
+  function applyPrefs() {
+    const p = currentPrefs();
+    const root = document.documentElement;
+    root.style.setProperty('--scale', p.scale);
+    root.style.setProperty('--accent', p.accent);
+    root.style.setProperty('--accent-hover', darken(p.accent, 0.15));
+  }
+
+  /* =========================================================
+     FEEDBACK: toast + screen reader announcement (NFR2, NFR6)
+     ========================================================= */
+  let toastTimer = null;
+  let queued = null;
+  function toast(msg) {
+    const el = $('#toast');
+    el.textContent = '';
+    clearTimeout(toastTimer);
+    // Clearing first means the same message is announced again if repeated.
+    setTimeout(() => { el.textContent = msg; }, 30);
+    toastTimer = setTimeout(() => { el.textContent = ''; }, 5000);
+  }
+  function queueToast(msg) { queued = msg; }
+
+  /* =========================================================
+     FORM HELPERS (NFR2: labelled fields, errors linked with
+     aria-describedby, aria-invalid, focus to first error)
+     ========================================================= */
+  function field({ id, name, label, type = 'text', value = '', hint = '', autocomplete = '', required = true, extra = '' }) {
+    const describedBy = [hint ? id + '-hint' : '', id + '-err'].filter(Boolean).join(' ');
+    return `<div class="field">
+      <label for="${id}">${esc(label)}${required ? '' : ' <span class="optional">(optional)</span>'}</label>
+      ${hint ? `<p class="hint" id="${id}-hint">${esc(hint)}</p>` : ''}
+      <input id="${id}" name="${name}" type="${type}" value="${esc(value)}" ${autocomplete ? `autocomplete="${autocomplete}"` : ''} ${required ? 'aria-required="true"' : ''} aria-describedby="${describedBy}" ${extra}>
+      <p class="field-error" id="${id}-err" hidden></p>
+    </div>`;
+  }
+  function selectField({ id, name, label, options, value = '', placeholder = '', hint = '', required = true }) {
+    const describedBy = [hint ? id + '-hint' : '', id + '-err'].filter(Boolean).join(' ');
+    return `<div class="field">
+      <label for="${id}">${esc(label)}${required ? '' : ' <span class="optional">(optional)</span>'}</label>
+      ${hint ? `<p class="hint" id="${id}-hint">${esc(hint)}</p>` : ''}
+      <select id="${id}" name="${name}" ${required ? 'aria-required="true"' : ''} aria-describedby="${describedBy}">
+        ${placeholder ? `<option value="">${esc(placeholder)}</option>` : ''}
+        ${options.map((o) => `<option value="${esc(o.value)}" ${o.value === value ? 'selected' : ''}>${esc(o.label)}</option>`).join('')}
+      </select>
+      <p class="field-error" id="${id}-err" hidden></p>
+    </div>`;
+  }
+  function textareaField({ id, name, label, value = '', hint = '', max = 200, required = false }) {
+    return `<div class="field">
+      <label for="${id}">${esc(label)}${required ? '' : ' <span class="optional">(optional)</span>'}</label>
+      ${hint ? `<p class="hint" id="${id}-hint">${esc(hint)}</p>` : ''}
+      <textarea id="${id}" name="${name}" maxlength="${max}" aria-describedby="${hint ? id + '-hint ' : ''}${id}-count ${id}-err" data-count="${id}-count">${esc(value)}</textarea>
+      <p class="hint" id="${id}-count">${max - String(value).length} characters left</p>
+      <p class="field-error" id="${id}-err" hidden></p>
+    </div>`;
+  }
+  function wireCounters(root) {
+    $$('textarea[data-count]', root).forEach((ta) => {
+      const out = document.getElementById(ta.dataset.count);
+      ta.addEventListener('input', () => { out.textContent = `${ta.maxLength - ta.value.length} characters left`; });
+    });
+  }
+  function showErrors(form, errors, formErrorText) {
+    let first = null;
+    $$('input[name], select[name], textarea[name]', form).forEach((el) => {
+      const errEl = form.querySelector('#' + CSS.escape(el.id) + '-err');
+      if (!errEl) return;
+      const msg = errors[el.name];
+      if (msg) {
+        el.setAttribute('aria-invalid', 'true');
+        errEl.innerHTML = '<span aria-hidden="true">⚠ </span>' + esc(msg);
+        errEl.hidden = false;
+        if (!first) first = el;
+      } else {
+        el.removeAttribute('aria-invalid');
+        errEl.hidden = true;
+        errEl.textContent = '';
+      }
+    });
+    if (first) {
+      first.focus();
+      const n = Object.keys(errors).length;
+      toast(`${formErrorText || 'Please fix ' + plural(n, 'error')}: ${errors[first.name]}`);
+      return false;
+    }
+    return true;
+  }
+  const formData = (form) => Object.fromEntries(new FormData(form).entries());
+
+  function validateMember(data, teamId, exceptUserId) {
+    const e = {};
+    const name = (data.name || '').trim();
+    const email = (data.email || '').trim();
+    if (!name) e.name = 'Enter the member’s full name.';
+    else if (name.length > 60) e.name = 'Name must be 60 characters or fewer.';
+    if (!email) e.email = 'Enter an email address.';
+    else if (!EMAIL_RE.test(email)) e.email = 'Enter an email address in the format name@example.com.';
+    else {
+      const existing = Store.userByEmail(email);
+      if (existing && existing.id !== exceptUserId) {
+        const m = Store.membershipForUser(existing.id);
+        e.email = m && m.teamId === teamId
+          ? `${existing.name} already uses this email in your team.`
+          : 'This email already belongs to someone in another team. Each person can join one team in this version.';
+      }
+    }
+    if ('role' in data && !ROLES.includes(data.role)) e.role = 'Choose a role.';
+    return e;
+  }
+
+  /* =========================================================
+     DIALOGS: native <dialog> traps focus and closes with Esc;
+     focus returns to the control that opened it (NFR2).
+     ========================================================= */
+  const dlg = $('#dlg');
+  let returnFocusTo = null;
+  function openDialog(html, labelId, descId) {
+    returnFocusTo = document.activeElement;
+    dlg.innerHTML = html;
+    dlg.returnValue = '';
+    labelId ? dlg.setAttribute('aria-labelledby', labelId) : dlg.removeAttribute('aria-labelledby');
+    descId ? dlg.setAttribute('aria-describedby', descId) : dlg.removeAttribute('aria-describedby');
+    dlg.showModal();
+  }
+  dlg.addEventListener('close', () => {
+    if (returnFocusTo && document.contains(returnFocusTo)) returnFocusTo.focus();
+  });
+  dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close('cancel'); }); // click on backdrop
+
+  function confirmDialog({ title, message, confirmLabel, danger = true }) {
+    return new Promise((resolve) => {
+      openDialog(`<form method="dialog">
+          <h2 id="dlg-title">${esc(title)}</h2>
+          <p id="dlg-desc">${esc(message)}</p>
+          <div class="dlg-actions">
+            <button class="btn secondary" value="cancel" autofocus>Cancel</button>
+            <button class="btn ${danger ? 'danger' : 'primary'}" value="ok">${esc(confirmLabel)}</button>
+          </div>
+        </form>`, 'dlg-title', 'dlg-desc');
+      dlg.addEventListener('close', () => resolve(dlg.returnValue === 'ok'), { once: true });
+    });
+  }
+
+  /* =========================================================
+     ROUTER (hash based, so it works from any static host)
+     ========================================================= */
+  const routes = {
+    '/signin': { title: 'Sign in', view: viewSignin, public: true },
+    '/signup': { title: 'Create an account', view: viewSignup, public: true },
+    '/project': { title: 'Project', view: viewProject },
+    '/board': { title: 'Board', view: viewBoard },
+    '/team': { title: 'Team', view: viewTeam },
+    '/settings': { title: 'Settings', view: viewSettings },
+    '/requirements': { title: 'Requirements map', view: viewRequirements, public: true, either: true }
+  };
+  let route = { path: '', params: new URLSearchParams() };
+  let firstRender = true;
+  let showReqs = false;
+
+  function parseHash() {
+    const h = location.hash || '';
+    if (!h.startsWith('#/')) return null;
+    const [path, query] = h.slice(1).split('?');
+    return { path, params: new URLSearchParams(query || '') };
+  }
+  function go(path) { location.hash = '#' + path; }
+
+  function router() {
+    const parsed = parseHash();
+    if (!parsed) {
+      if (!location.hash || location.hash === '#') { location.replace('#' + (Auth.current() ? '/project' : '/signin')); }
+      return;
+    }
+    const r = routes[parsed.path];
+    if (!r) { location.replace('#/project'); return; }
+    const user = Auth.current();
+    if (!r.public && !user) {
+      // FR1: a signed-out user is redirected to sign in, then returned afterwards.
+      queueToast(queued || 'Please sign in to view that page.');
+      location.replace('#/signin?next=' + encodeURIComponent(parsed.path));
+      return;
+    }
+    if (r.public && !r.either && user) { location.replace('#/project'); return; }
+    route = parsed;
+    render();
+  }
+
+  function render(focusSelector) {
+    applyPrefs();
+    const r = routes[route.path];
+    const c = context();
+    const v = r.view(c);
+    $('#app').innerHTML = header(c) + `<main id="main" tabindex="-1"><div class="wrap">${v.html}</div></main>` + footer();
+    document.title = `${r.title} – TeamBoard`;
+    wireCounters($('#app'));
+    if (v.mount) v.mount($('#app'), c);
+    // Move focus to the new page heading so screen reader users hear the page change.
+    if (focusSelector) {
+      const el = $(focusSelector);
+      if (el) el.focus();
+    } else if (!firstRender) {
+      const h1 = $('main h1');
+      if (h1) h1.focus();
+    }
+    firstRender = false;
+    if (queued) { toast(queued); queued = null; }
+  }
+
+  /* =========================================================
+     SHARED LAYOUT
+     ========================================================= */
+  function header(c) {
+    const p = currentPrefs();
+    const idx = SCALES.indexOf(p.scale);
+    const links = [['/project', 'Project'], ['/board', 'Board'], ['/team', 'Team'], ['/settings', 'Settings']];
+    const nav = c ? `<nav aria-label="Main" data-req="NFR3 · same navigation on every page">
+        <ul>${links.map(([h, l]) => `<li><a href="#${h}" ${route.path === h ? 'aria-current="page"' : ''}>${l}</a></li>`).join('')}</ul>
+      </nav>` : '';
+    return `<header class="top">
+      <div class="wrap top-inner">
+        <a class="brand" href="#${c ? '/project' : '/signin'}"><span class="logo" aria-hidden="true">▦</span>TeamBoard${c && c.team ? `<span class="team-name">${esc(c.team.name)}</span>` : ''}</a>
+        ${nav}
+        <div class="tools">
+          <div class="textsize" role="group" aria-labelledby="ts-label" data-req="FR6 · DR7">
+            <span id="ts-label" class="ts-label">Text size</span>
+            <button type="button" class="btn small secondary" data-action="text-down" aria-label="Smaller text, A minus" ${idx <= 0 ? 'disabled' : ''}>A−</button>
+            <span class="ts-value">${Math.round(p.scale * 100)}%</span>
+            <button type="button" class="btn small secondary" data-action="text-up" aria-label="Larger text, A plus" ${idx >= SCALES.length - 1 ? 'disabled' : ''}>A+</button>
+          </div>
+          <button type="button" class="btn small secondary" data-action="toggle-reqs" aria-pressed="${showReqs}">Requirement labels</button>
+          ${c ? `<span class="who"><span class="avatar" aria-hidden="true">${esc(initials(c.user.name))}</span><span>${esc(c.user.name)}<span class="sr-only">, ${esc(c.membership ? c.membership.role : '')}</span></span></span>
+          <button type="button" class="btn small secondary" data-action="signout" data-req="FR1">Sign out</button>` : ''}
+        </div>
+      </div>
+    </header>`;
+  }
+  function footer() {
+    return `<footer class="foot"><div class="wrap">TeamBoard medium fidelity prototype · <a href="#/requirements">Requirements map</a> · Data is saved in this browser only${Store.persistent ? '' : ' (storage is unavailable here, so changes last until you close the page)'}</div></footer>`;
+  }
+
+  /* =========================================================
+     VIEW: SIGN IN (FR1, DR1, DR2)
+     ========================================================= */
+  function viewSignin() {
+    const html = `<section class="auth" aria-labelledby="page-title">
+      <h1 id="page-title" tabindex="-1">Sign in</h1>
+      <p class="lead">Sign in to see your team’s project board.</p>
+      <section class="demo" aria-labelledby="demo-h-si" data-req="Extra · marker access, no registration">
+        <h2 id="demo-h-si">Demo account</h2>
+        <dl><dt>Email</dt><dd>${DEMO.email}</dd><dt>Password</dt><dd>${DEMO.password}</dd></dl>
+        <button type="button" class="btn small secondary" data-action="fill-demo">Fill in demo details</button>
+      </section>
+      <form id="f-signin" class="card" novalidate data-req="FR1 · DR1 · DR2 · NFR2">
+        <div id="signin-error" class="form-error" role="alert" hidden></div>
+        ${field({ id: 'si-email', name: 'email', label: 'Email address', type: 'email', autocomplete: 'username' })}
+        <div class="field">
+          <label for="si-password">Password</label>
+          <div class="pw-row">
+            <input id="si-password" name="password" type="password" autocomplete="current-password" aria-required="true" aria-describedby="si-password-err">
+            <button type="button" class="btn secondary" data-action="toggle-pw" data-target="si-password" aria-pressed="false">Show</button>
+          </div>
+          <p class="field-error" id="si-password-err" hidden></p>
+        </div>
+        <button class="btn primary" type="submit">Sign in</button>
+      </form>
+      <p>New team? <a href="#/signup">Create an account</a> to start with an empty project.</p>
+    </section>`;
+    return {
+      html,
+      mount(root) {
+        const form = $('#f-signin', root);
+        form.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const d = formData(form);
+          const errs = {};
+          if (!d.email.trim()) errs.email = 'Enter your email address.';
+          else if (!EMAIL_RE.test(d.email.trim())) errs.email = 'Enter an email address in the format name@example.com.';
+          if (!d.password) errs.password = 'Enter your password.';
+          const box = $('#signin-error', form);
+          box.hidden = true;
+          if (!showErrors(form, errs)) return;
+          const user = await Auth.signIn(d.email, d.password);
+          if (!user) {
+            box.textContent = 'The email or password is not right. Check them and try again.';
+            box.hidden = false;
+            $('#si-password', form).value = '';
+            $('#si-password', form).focus();
+            return;
+          }
+          queueToast(`Signed in. Welcome back, ${user.name.split(' ')[0]}.`);
+          const next = route.params.get('next');
+          go(next && routes[next] && !routes[next].public ? next : '/project');
+        });
+      }
+    };
+  }
+
+  /* =========================================================
+     VIEW: CREATE ACCOUNT (FR1, FR4, DR1, DR3, NFR7)
+     ========================================================= */
+  function viewSignup() {
+    const html = `<section class="auth" aria-labelledby="page-title">
+      <h1 id="page-title" tabindex="-1">Create an account</h1>
+      <p class="lead">Set up your team in one step. We only store your name and email.</p>
+      <form id="f-signup" class="card" novalidate data-req="FR1 · FR4 · DR1 · DR3 · NFR7">
+        ${field({ id: 'su-name', name: 'name', label: 'Full name', autocomplete: 'name' })}
+        ${field({ id: 'su-email', name: 'email', label: 'Email address', type: 'email', autocomplete: 'email', hint: 'Your teammates will use this to contact you.' })}
+        <div class="field">
+          <label for="su-password">Password</label>
+          <p class="hint" id="su-password-hint">At least 8 characters.</p>
+          <div class="pw-row">
+            <input id="su-password" name="password" type="password" autocomplete="new-password" aria-required="true" aria-describedby="su-password-hint su-password-err">
+            <button type="button" class="btn secondary" data-action="toggle-pw" data-target="su-password" aria-pressed="false">Show</button>
+          </div>
+          <p class="field-error" id="su-password-err" hidden></p>
+        </div>
+        ${field({ id: 'su-team', name: 'team', label: 'Team name', hint: 'For example, Mobile App Team.' })}
+        ${selectField({ id: 'su-role', name: 'role', label: 'Your role', placeholder: 'Choose a role', options: ROLES.map((r) => ({ value: r, label: r })) })}
+        <button class="btn primary" type="submit">Create account</button>
+      </form>
+      <p>Already have an account? <a href="#/signin">Sign in</a></p>
+    </section>`;
+    return {
+      html,
+      mount(root) {
+        const form = $('#f-signup', root);
+        form.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const d = formData(form);
+          const errs = validateMember({ name: d.name, email: d.email, role: d.role }, null, null);
+          if (errs.email && Store.userByEmail(d.email)) errs.email = 'An account with this email already exists. Sign in instead.';
+          if (!d.password) errs.password = 'Enter a password.';
+          else if (d.password.length < 8) errs.password = 'Password must be at least 8 characters.';
+          if (!d.team.trim()) errs.team = 'Enter a team name.';
+          else if (d.team.trim().length > 40) errs.team = 'Team name must be 40 characters or fewer.';
+          if (!showErrors(form, errs)) return;
+          const user = Store.addUser({ id: uid(), name: d.name.trim(), email: d.email.trim(), passwordHash: await hashPassword(d.email, d.password), createdAt: nowIso() });
+          const team = Store.addTeam({ id: uid(), name: d.team.trim(), createdAt: nowIso() });
+          Store.addMembership({ userId: user.id, teamId: team.id, role: d.role, joinedAt: nowIso() });
+          Store.setPrefs(user.id, Store.prefs('guest'));
+          await Auth.signIn(d.email, d.password);
+          queueToast('Account created. Next, create your team’s project.');
+          go('/project');
+        });
+      }
+    };
+  }
+
+  /* =========================================================
+     VIEW: PROJECT (FR2, DR4)
+     ========================================================= */
+  let editingProject = false;
+  function projectForm(p) {
+    return `${field({ id: 'pr-name', name: 'name', label: 'Project name', value: p ? p.name : '', hint: 'Up to 60 characters.' })}
+      ${textareaField({ id: 'pr-desc', name: 'description', label: 'Short description', value: p ? p.description : '', hint: 'What the project is for, in a sentence or two.', max: 200 })}`;
+  }
+  function validateProject(d) {
+    const e = {};
+    if (!d.name.trim()) e.name = 'Enter a project name.';
+    else if (d.name.trim().length > 60) e.name = 'Project name must be 60 characters or fewer.';
+    return e;
+  }
+
+  function viewProject(c) {
+    if (!c.team) return { html: '<h1 tabindex="-1">No team</h1><p>Your account is not part of a team.</p>' };
+    if (!c.project) {
+      return {
+        html: `<div class="page-head"><div><h1 tabindex="-1">Create your project</h1>
+          <p class="lead">${esc(c.team.name)} doesn’t have a project yet. Each team has one project in this version.</p></div></div>
+          <form id="f-project" class="card" novalidate data-req="FR2 · DR4 · FR8 one project per team">
+            ${projectForm(null)}
+            <button class="btn primary" type="submit">Create project</button>
+          </form>`,
+        mount(root) {
+          const form = $('#f-project', root);
+          form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const d = formData(form);
+            if (!showErrors(form, validateProject(d))) return;
+            Store.addProject({ id: uid(), teamId: c.team.id, name: d.name.trim(), description: d.description.trim(), createdAt: nowIso(), updatedAt: nowIso() });
+            queueToast('Project created.');
+            render('main h1');
+          });
+        }
+      };
+    }
+
+    const p = c.project;
+    const tickets = Store.ticketsForProject(p.id);
+    const done = tickets.filter((t) => t.status === 'done').length;
+    const members = Store.membershipsForTeam(c.team.id).map((m) => ({ m, u: Store.userById(m.userId) })).filter((x) => x.u);
+
+    const about = editingProject
+      ? `<form id="f-project-edit" class="card" novalidate aria-labelledby="edit-h" data-req="FR2 · DR4">
+          <h2 id="edit-h">Edit project details</h2>
+          ${projectForm(p)}
+          <div class="actions"><button class="btn primary" type="submit">Save changes</button>
+          <button class="btn secondary" type="button" data-action="cancel-edit-project">Cancel</button></div>
+        </form>`
+      : `<section class="card" aria-labelledby="about-h" data-req="FR2 · DR4">
+          <h2 id="about-h">About this project</h2>
+          <p>${p.description ? esc(p.description) : '<span class="hint">No description yet.</span>'}</p>
+          <dl class="meta">
+            <div><dt>Team</dt><dd>${esc(c.team.name)}</dd></div>
+            <div><dt>Created</dt><dd>${fmtDate(p.createdAt)}</dd></div>
+            <div><dt>Last updated</dt><dd>${fmtDate(p.updatedAt)}</dd></div>
+          </dl>
+        </section>`;
+
+    const html = `<div class="page-head">
+        <div><p class="hint">Your team’s project</p><h1 tabindex="-1">${esc(p.name)}</h1></div>
+        ${editingProject ? '' : '<button type="button" class="btn secondary" data-action="edit-project">Edit details</button>'}
+      </div>
+      ${about}
+      <div class="grid-2">
+        <section class="card" aria-labelledby="prog-h" data-req="Extra · board summary">
+          <h2 id="prog-h">Progress</h2>
+          <ul class="stat-list">
+            ${STATUSES.map((s) => `<li><span class="n">${tickets.filter((t) => t.status === s.id).length}</span><span class="l">${s.label}</span></li>`).join('')}
+          </ul>
+          <label for="prog-bar" class="hint">${done} of ${plural(tickets.length, 'ticket')} done</label>
+          <progress id="prog-bar" max="${Math.max(tickets.length, 1)}" value="${done}"></progress>
+          <p style="margin-top:1rem"><a class="btn primary" href="#/board">Open the board</a></p>
+        </section>
+        <section class="card" aria-labelledby="team-h" data-req="FR3 · FR5">
+          <h2 id="team-h">Team</h2>
+          <ul class="team-mini">${members.map(({ m, u }) => `<li><span class="avatar" aria-hidden="true">${esc(initials(u.name))}</span>${esc(u.name)} <span class="role-badge">${esc(m.role)}</span></li>`).join('')}</ul>
+          <a class="btn secondary" href="#/team">Manage team</a>
+        </section>
+      </div>`;
+    return {
+      html,
+      mount(root) {
+        const form = $('#f-project-edit', root);
+        if (form) {
+          form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const d = formData(form);
+            if (!showErrors(form, validateProject(d))) return;
+            Store.updateProject(p.id, { name: d.name.trim(), description: d.description.trim() });
+            editingProject = false;
+            queueToast('Project details saved.');
+            render('[data-action="edit-project"]');
+          });
+        }
+      }
+    };
+  }
+
+  /* =========================================================
+     VIEW: BOARD (Extra: Kanban board from the James persona)
+     Tickets move with buttons (keyboard and screen reader
+     friendly, NFR2) or by drag and drop as a shortcut.
+     ========================================================= */
+  function viewBoard(c) {
+    if (!c.project) {
+      return { html: `<h1 tabindex="-1">Board</h1><div class="card"><p>Create your project first, then add tickets here.</p><a class="btn primary" href="#/project">Create project</a></div>` };
+    }
+    const tickets = Store.ticketsForProject(c.project.id);
+    const members = Store.membershipsForTeam(c.team.id).map((m) => ({ m, u: Store.userById(m.userId) })).filter((x) => x.u);
+    const card = (t) => {
+      const i = STATUSES.findIndex((s) => s.id === t.status);
+      const prev = STATUSES[i - 1];
+      const next = STATUSES[i + 1];
+      const a = t.assigneeId ? Store.userById(t.assigneeId) : null;
+      const am = a ? Store.membershipForUser(a.id) : null;
+      return `<li class="ticket" id="t-${t.id}" draggable="true" data-id="${t.id}">
+        <h3>${esc(t.title)}</h3>
+        <p class="t-assignee">${a ? `<span class="avatar" aria-hidden="true">${esc(initials(a.name))}</span><span>${esc(a.name)} · ${esc(am ? am.role : '')}</span>` : '<span>Unassigned</span>'}</p>
+        <div class="t-actions">
+          ${prev ? `<button type="button" class="btn small secondary" data-action="move" data-dir="prev" data-id="${t.id}" data-to="${prev.id}" aria-label="Move ${esc(t.title)} back to ${prev.label}"><span aria-hidden="true">←</span> ${prev.label}</button>` : ''}
+          ${next ? `<button type="button" class="btn small secondary" data-action="move" data-dir="next" data-id="${t.id}" data-to="${next.id}" aria-label="Move ${esc(t.title)} to ${next.label}">${next.label} <span aria-hidden="true">→</span></button>` : ''}
+          <button type="button" class="btn small ghost-danger" data-action="delete-ticket" data-id="${t.id}" aria-label="Delete ${esc(t.title)}">Delete</button>
+        </div>
+      </li>`;
+    };
+    const html = `<div class="page-head"><div><h1 tabindex="-1">Board</h1>
+        <p class="lead">${esc(c.project.name)}. Move a ticket with the buttons on its card, or drag it to another column.</p></div></div>
+      <form id="f-ticket" class="card add-ticket" novalidate aria-labelledby="add-t-h" data-req="Extra · Kanban (persona) · NFR3">
+        <h2 id="add-t-h">Add a ticket</h2>
+        ${field({ id: 'tk-title', name: 'title', label: 'What needs doing?', hint: 'Up to 80 characters.' })}
+        ${selectField({ id: 'tk-assignee', name: 'assignee', label: 'Assign to', required: false, value: '', options: [{ value: '', label: 'Unassigned' }, ...members.map(({ m, u }) => ({ value: u.id, label: `${u.name} (${m.role})` }))] })}
+        <button class="btn primary" type="submit">Add to To do</button>
+      </form>
+      <div class="board" data-req="Extra · Kanban board · NFR2 keyboard moves">
+        ${STATUSES.map((s) => {
+          const list = tickets.filter((t) => t.status === s.id);
+          return `<section class="column" data-status="${s.id}" aria-labelledby="col-${s.id}">
+            <h2 id="col-${s.id}">${s.label} <span class="count">${list.length}<span class="sr-only"> ${list.length === 1 ? 'ticket' : 'tickets'}</span></span></h2>
+            <ul class="cards">${list.map(card).join('')}</ul>
+            ${list.length ? '' : '<p class="empty">No tickets here yet.</p>'}
+          </section>`;
+        }).join('')}
+      </div>`;
+    return {
+      html,
+      mount(root) {
+        const form = $('#f-ticket', root);
+        form.addEventListener('submit', (e) => {
+          e.preventDefault();
+          const d = formData(form);
+          const errs = {};
+          if (!d.title.trim()) errs.title = 'Describe the ticket in a few words.';
+          else if (d.title.trim().length > 80) errs.title = 'Keep the ticket title to 80 characters or fewer.';
+          if (!showErrors(form, errs)) return;
+          const t = Store.addTicket({ id: uid(), projectId: c.project.id, title: d.title.trim(), status: 'todo', assigneeId: d.assignee || null, order: Date.now(), createdAt: nowIso() });
+          Store.touchProject(c.project.id);
+          queueToast(`Added “${t.title}” to To do.`);
+          render('#tk-title');
+        });
+        // Drag and drop (mouse shortcut; the buttons remain the accessible route)
+        $$('.ticket', root).forEach((el) => {
+          el.addEventListener('dragstart', (e) => { e.dataTransfer.setData('text/plain', el.dataset.id); e.dataTransfer.effectAllowed = 'move'; el.classList.add('dragging'); });
+          el.addEventListener('dragend', () => el.classList.remove('dragging'));
+        });
+        $$('.column', root).forEach((col) => {
+          col.addEventListener('dragover', (e) => { e.preventDefault(); col.classList.add('drag-over'); });
+          col.addEventListener('dragleave', (e) => { if (!col.contains(e.relatedTarget)) col.classList.remove('drag-over'); });
+          col.addEventListener('drop', (e) => {
+            e.preventDefault();
+            col.classList.remove('drag-over');
+            const id = e.dataTransfer.getData('text/plain');
+            if (id) moveTicket(id, col.dataset.status, null);
+          });
+        });
+      }
+    };
+  }
+  function moveTicket(id, to, dir) {
+    const t = Store.ticketById(id);
+    if (!t || t.status === to) return;
+    Store.updateTicket(id, { status: to, order: Date.now() });
+    Store.touchProject(t.projectId);
+    const label = STATUSES.find((s) => s.id === to).label;
+    queueToast(`Moved “${t.title}” to ${label}.`);
+    // Keep focus on the moved card so keyboard users can keep moving it.
+    const sel = `#t-${CSS.escape(id)} [data-dir="${dir}"]`;
+    render(dir && STATUSES.some((s, i) => s.id === to && (dir === 'next' ? i < STATUSES.length - 1 : i > 0)) ? sel : `#t-${CSS.escape(id)} button`);
+  }
+
+  /* =========================================================
+     VIEW: TEAM (FR3, FR4, FR5, DR5, DR10)
+     ========================================================= */
+  function viewTeam(c) {
+    const members = Store.membershipsForTeam(c.team.id).map((m) => ({ m, u: Store.userById(m.userId) })).filter((x) => x.u)
+      .sort((a, b) => a.u.name.localeCompare(b.u.name));
+    const roleOptions = ROLES.map((r) => ({ value: r, label: r }));
+    const row = ({ m, u }) => {
+      const me = u.id === c.user.id;
+      return `<li class="member" id="m-${u.id}">
+        <span class="avatar" aria-hidden="true">${esc(initials(u.name))}</span>
+        <div class="m-info">
+          <p class="m-name">${esc(u.name)}${me ? ' <span class="you">(you)</span>' : ''}</p>
+          <p class="m-email"><a href="mailto:${esc(u.email)}">${esc(u.email)}</a></p>
+        </div>
+        <span class="role-badge"><span class="sr-only">Role: </span>${esc(m.role)}</span>
+        <div class="m-actions">
+          <button type="button" class="btn small secondary" data-action="edit-member" data-id="${u.id}" aria-label="Edit ${esc(u.name)}">Edit</button>
+          ${me ? '' : `<button type="button" class="btn small ghost-danger" data-action="remove-member" data-id="${u.id}" aria-label="Remove ${esc(u.name)}">Remove</button>`}
+        </div>
+      </li>`;
+    };
+    const html = `<div class="page-head"><div><h1 tabindex="-1">Team</h1>
+        <p class="lead">${esc(c.team.name)} · ${plural(members.length, 'member')}</p></div></div>
+      <div class="grid-team">
+        <section class="card" aria-labelledby="members-h" data-req="FR3 · FR4 · FR5 · DR5">
+          <h2 id="members-h">Members</h2>
+          <ul class="members">${members.map(row).join('')}</ul>
+        </section>
+        <section class="card" aria-labelledby="add-h" data-req="FR3 · FR5 · DR10 · NFR2">
+          <h2 id="add-h">Add a member</h2>
+          <form id="f-member" novalidate>
+            ${field({ id: 'am-name', name: 'name', label: 'Full name', autocomplete: 'off' })}
+            ${field({ id: 'am-email', name: 'email', label: 'Email address', type: 'email', autocomplete: 'off', hint: 'Used to contact them. Each email can only be added once.' })}
+            ${selectField({ id: 'am-role', name: 'role', label: 'Role', placeholder: 'Choose a role', options: roleOptions, hint: 'Roles describe what someone does. They don’t change permissions.' })}
+            <button class="btn primary" type="submit">Add member</button>
+          </form>
+        </section>
+      </div>`;
+    return {
+      html,
+      mount(root) {
+        const form = $('#f-member', root);
+        form.addEventListener('submit', (e) => {
+          e.preventDefault();
+          const d = formData(form);
+          if (!showErrors(form, validateMember(d, c.team.id, null))) return;
+          const u = Store.addUser({ id: uid(), name: d.name.trim(), email: d.email.trim(), passwordHash: null, createdAt: nowIso() });
+          Store.addMembership({ userId: u.id, teamId: c.team.id, role: d.role, joinedAt: nowIso() });
+          queueToast(`${u.name} was added to the team as ${d.role}.`);
+          render('#am-name');
+        });
+      }
+    };
+  }
+
+  function openEditMember(userId) {
+    const c = context();
+    const u = Store.userById(userId);
+    const m = Store.membershipForUser(userId);
+    if (!u || !m) return;
+    openDialog(`<form id="f-edit-member" novalidate>
+        <h2 id="em-title">Edit ${esc(u.name)}</h2>
+        ${field({ id: 'em-name', name: 'name', label: 'Full name', value: u.name, autocomplete: 'off' })}
+        ${field({ id: 'em-email', name: 'email', label: 'Email address', type: 'email', value: u.email, autocomplete: 'off' })}
+        ${selectField({ id: 'em-role', name: 'role', label: 'Role', value: m.role, options: ROLES.map((r) => ({ value: r, label: r })) })}
+        <div class="dlg-actions">
+          <button type="button" class="btn secondary" data-action="close-dialog">Cancel</button>
+          <button type="submit" class="btn primary">Save changes</button>
+        </div>
+      </form>`, 'em-title');
+    $('#em-name', dlg).focus();
+    const form = $('#f-edit-member', dlg);
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const d = formData(form);
+      if (!showErrors(form, validateMember(d, c.team.id, u.id))) return;
+      const wasMe = u.id === c.user.id;
+      Store.updateUser(u.id, { name: d.name.trim(), email: d.email.trim(), ...(wasMe && d.email.trim().toLowerCase() !== u.email.toLowerCase() && u.passwordHash ? { passwordHash: null } : {}) });
+      Store.updateMembership(u.id, c.team.id, { role: d.role });
+      returnFocusTo = null;
+      dlg.close();
+      queueToast(`Saved changes to ${d.name.trim()}.`);
+      render(`#m-${CSS.escape(u.id)} [data-action="edit-member"]`);
+    });
+  }
+
+  /* =========================================================
+     VIEW: SETTINGS (FR6, FR7, FR4, DR7, DR8, DR9)
+     ========================================================= */
+  let pendingAccent = null;
+  function contrastReadout(hex) {
+    const r = contrast(hex, '#ffffff');
+    const ok = r >= MIN_CONTRAST;
+    return `<span class="${ok ? 'pass' : 'fail'}">${ok ? '✓ Passes' : '✗ Fails'}</span> Contrast with white text: <strong>${r.toFixed(2)}:1</strong> (needs ${MIN_CONTRAST}:1)`;
+  }
+  function viewSettings(c) {
+    const p = currentPrefs();
+    pendingAccent = p.accent;
+    const sizeLabel = (s) => ({ 0.875: 'Small', 1: 'Default', 1.25: 'Large', 2: 'Largest' }[s] || '');
+    const html = `<div class="page-head"><div><h1 tabindex="-1">Settings</h1>
+        <p class="lead">Changes save to this browser and apply on every page.</p></div></div>
+
+      <section class="card" aria-labelledby="ts-h" data-req="FR6 · DR7 · NFR1">
+        <h2 id="ts-h">Text size</h2>
+        <fieldset>
+          <legend class="hint" style="font-weight:400">Choose how large text appears. The layout reflows, so nothing is cut off.</legend>
+          <div class="size-options">
+            ${SCALES.map((s) => `<label class="choice"><input type="radio" name="scale" value="${s}" ${s === p.scale ? 'checked' : ''}>${Math.round(s * 100)}%${sizeLabel(s) ? ' · ' + sizeLabel(s) : ''}</label>`).join('')}
+          </div>
+        </fieldset>
+        <p class="sample-text">Preview: Team members can move tickets to Review. Il1 O0 rn m</p>
+      </section>
+
+      <section class="card" aria-labelledby="ac-h" data-req="FR7 · DR8 · DR9 · NFR1">
+        <h2 id="ac-h">Accent colour</h2>
+        <p>Used for buttons, links and the logo. To keep text readable, a colour must reach ${MIN_CONTRAST}:1 contrast with white button text, or it is rejected.</p>
+        <fieldset>
+          <legend>Preset colours</legend>
+          <div class="size-options">
+            ${PRESETS.map((pr) => `<label class="choice"><input type="radio" name="accent-preset" value="${pr.hex}" ${pr.hex === p.accent ? 'checked' : ''}><span class="swatch" style="background:${pr.hex}" aria-hidden="true"></span>${pr.name}</label>`).join('')}
+          </div>
+        </fieldset>
+        <div class="field">
+          <label for="ac-hex">Custom colour</label>
+          <p class="hint" id="ac-hex-hint">Type a hex code such as #7a1fa2, or use the picker. Try #f5c518 to see a colour being rejected.</p>
+          <div class="custom-row">
+            <input type="color" id="ac-picker" value="${p.accent}" aria-label="Colour picker">
+            <input type="text" id="ac-hex" name="hex" value="${p.accent}" spellcheck="false" autocomplete="off" aria-describedby="ac-hex-hint ac-hex-err">
+          </div>
+          <p class="field-error" id="ac-hex-err" hidden></p>
+        </div>
+        <div class="preview">
+          <span class="btn primary" id="ac-sample" aria-hidden="true" style="background:${p.accent};border-color:${p.accent}">Sample button</span>
+          <p id="ac-readout">${contrastReadout(p.accent)}</p>
+        </div>
+        <div class="actions">
+          <button type="button" class="btn primary" data-action="save-accent">Save colour</button>
+          <button type="button" class="btn secondary" data-action="reset-accent">Reset to default</button>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="acct-h" data-req="FR4 · DR1 · DR5">
+        <h2 id="acct-h">Your account</h2>
+        <dl class="kv">
+          <dt>Name</dt><dd>${esc(c.user.name)}</dd>
+          <dt>Email</dt><dd>${esc(c.user.email)}</dd>
+          <dt>Role</dt><dd>${esc(c.membership ? c.membership.role : '')}</dd>
+          <dt>Team</dt><dd>${esc(c.team ? c.team.name : '')}</dd>
+        </dl>
+        <p class="hint">TeamBoard stores only your name, email and role. Change them from the <a href="#/team">Team page</a>.</p>
+      </section>
+
+      <section class="card" aria-labelledby="demo-h" data-req="Extra · reset for markers">
+        <h2 id="demo-h">Demo data</h2>
+        <p>Put the example team, project and tickets back as they started. This signs you out.</p>
+        <button type="button" class="btn ghost-danger" data-action="reset-demo">Reset demo data</button>
+      </section>`;
+    return {
+      html,
+      mount(root) {
+        $$('input[name="scale"]', root).forEach((r) => r.addEventListener('change', () => {
+          setScale(parseFloat(r.value), `input[name="scale"][value="${r.value}"]`);
+        }));
+        const hex = $('#ac-hex', root);
+        const picker = $('#ac-picker', root);
+        const preview = (val) => {
+          const v = normaliseHex(val);
+          if (!/^#[0-9a-f]{6}$/.test(v)) { $('#ac-readout', root).innerHTML = '<span class="fail">Not a valid hex code yet.</span>'; return; }
+          pendingAccent = v;
+          const s = $('#ac-sample', root);
+          s.style.background = v; s.style.borderColor = v;
+          $('#ac-readout', root).innerHTML = contrastReadout(v);
+        };
+        $$('input[name="accent-preset"]', root).forEach((r) => r.addEventListener('change', () => { hex.value = r.value; picker.value = r.value; preview(r.value); }));
+        picker.addEventListener('input', () => { hex.value = picker.value; preview(picker.value); $$('input[name="accent-preset"]', root).forEach((x) => { x.checked = x.value === picker.value; }); });
+        hex.addEventListener('input', () => { const v = normaliseHex(hex.value); if (/^#[0-9a-f]{6}$/.test(v)) picker.value = v; preview(hex.value); $$('input[name="accent-preset"]', root).forEach((x) => { x.checked = x.value === v; }); });
+      }
+    };
+  }
+  function saveAccent() {
+    const form = $('#ac-hex').closest('section');
+    const v = normaliseHex($('#ac-hex').value);
+    const errs = {};
+    if (!/^#[0-9a-f]{6}$/.test(v)) errs.hex = 'Enter a hex colour code such as #1f5fbf.';
+    else if (contrast(v, '#ffffff') < MIN_CONTRAST) errs.hex = `This colour only reaches ${contrast(v, '#ffffff').toFixed(2)}:1 with white text, so button labels would be hard to read. Choose a darker shade.`;
+    if (!showErrors(form, errs, 'Colour not saved')) return;
+    Store.setPrefs(prefKey(), { accent: v });
+    queueToast('Accent colour saved.');
+    render('[data-action="save-accent"]');
+  }
+  function setScale(s, focusSel) {
+    Store.setPrefs(prefKey(), { scale: s });
+    queueToast(`Text size set to ${Math.round(s * 100)}%.`);
+    render(focusSel);
+  }
+
+  /* =========================================================
+     VIEW: REQUIREMENTS MAP (for markers; public)
+     ========================================================= */
+  function viewRequirements(c) {
+    const rows = [
+      ['FR1', 'User authentication', 'Sign-in page; Sign out in the header', 'Sign out, then open the Team page from the address bar: you are sent to sign in and returned afterwards. Refresh while signed in and you stay signed in (8-hour session).'],
+      ['FR2', 'Create and view a project', 'Project page', 'Create an account to see the create-project form. With the demo team, view the project and use Edit details.'],
+      ['FR3', 'Add and manage team members', 'Team page', 'Add a member. Try a badly formed email or one already in the team. Edit a member, then Remove one: a confirmation appears first.'],
+      ['FR4', 'Store minimal user information', 'Team page; Settings → Your account', 'Only name, email and role are stored. Data stays after a refresh.'],
+      ['FR5', 'Assign team roles', 'Role dropdown on the Team page', 'Pick Developer, Designer or Tester. Roles show beside each name and on tickets.'],
+      ['FR6', 'Adjustable text size', 'A− / A+ in the header on every page; Settings → Text size', 'Set 200%: the page reflows with no sideways scrolling. Refresh: the size is remembered.'],
+      ['FR7', 'Colour accent theming', 'Settings → Accent colour', 'Pick a preset or type #f5c518 and press Save colour: it is rejected for low contrast. Reset to default restores blue.'],
+      ['FR8', 'Out of scope for this release', 'Project page', 'One project per team; roles are labels only and grant no permissions.'],
+      ['NFR1', 'Accessible visual design', 'Whole interface', 'Text contrast 4.5:1 or more, controls at least 36px high (44px for main buttons), status never shown by colour alone.'],
+      ['NFR2', 'Accessible code and assistive technology', 'Whole interface', 'Skip link, landmarks, labelled fields, errors linked to fields and announced, visible focus, board moves by keyboard, dialogs trap focus and close with Esc.'],
+      ['NFR3', 'Usability for a mixed audience', 'Header navigation', 'Same navigation on every page; plain labels; sign in, view project and add a member each take three steps or fewer.'],
+      ['NFR4', 'Technology and maintainability', 'Code', 'Colours, spacing and type defined once as CSS variables; all data goes through one Store module.'],
+      ['NFR5', 'Visual design with consistency', 'Typeface', 'Atkinson Hyperlegible, designed so l, I and 1 look different.'],
+      ['NFR6', 'Scale and performance', 'Whole interface', 'Runs in the browser with no server round trips, so actions give feedback instantly.'],
+      ['NFR7', 'Security and privacy', 'Sign-in and accounts', 'Passwords are hashed with SHA-256 before storage, never kept as plain text.'],
+      ['Extra', 'Kanban board', 'Board page', 'From the James Jones persona: his team moves tickets to Review. Add, move and delete tickets.'],
+      ['Extra', 'Demo account box', 'Sign-in page', 'Lets a marker sign in without registering, as the brief requires.'],
+      ['Extra', 'Requirement labels toggle', 'Header', 'Outlines each part of the page with the requirement it meets.'],
+      ['Extra', 'Reset demo data', 'Settings', 'Restores the example data after testing.']
+    ];
+    return {
+      html: `<div class="page-head"><div><h1 tabindex="-1">Requirements map</h1>
+        <p class="lead">Where each requirement appears in the prototype and how to test it. Turn on <strong>Requirement labels</strong> in the header to see them on each page.</p></div>
+        <a class="btn secondary" href="#${c ? '/project' : '/signin'}">${c ? 'Back to project' : 'Back to sign in'}</a></div>
+        <div class="card table-wrap"><table>
+          <caption class="sr-only">Requirements and where they appear</caption>
+          <thead><tr><th scope="col">ID</th><th scope="col">Requirement</th><th scope="col">Where</th><th scope="col">How to test</th></tr></thead>
+          <tbody>${rows.map(([id, name, where, how]) => `<tr><td>${id === 'Extra' ? '<span class="tag">Extra</span>' : id}</td><td>${esc(name)}</td><td>${esc(where)}</td><td>${esc(how)}</td></tr>`).join('')}</tbody>
+        </table></div>`
+    };
+  }
+
+  /* =========================================================
+     GLOBAL EVENT HANDLING
+     ========================================================= */
+  document.addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const a = btn.dataset.action;
+    switch (a) {
+      case 'skip': {
+        e.preventDefault();
+        const m = $('#main'); if (m) m.focus();
+        break;
+      }
+      case 'text-up':
+      case 'text-down': {
+        const p = currentPrefs();
+        let i = SCALES.indexOf(p.scale); if (i < 0) i = 1;
+        i = Math.max(0, Math.min(SCALES.length - 1, i + (a === 'text-up' ? 1 : -1)));
+        const target = (a === 'text-up' && i === SCALES.length - 1) ? '[data-action="text-down"]'
+          : (a === 'text-down' && i === 0) ? '[data-action="text-up"]' : `[data-action="${a}"]`;
+        setScale(SCALES[i], target);
+        break;
+      }
+      case 'toggle-reqs':
+        showReqs = !showReqs;
+        document.body.classList.toggle('show-reqs', showReqs);
+        btn.setAttribute('aria-pressed', String(showReqs));
+        Store.setUi('showReqs', showReqs);
+        toast(showReqs ? 'Requirement labels shown.' : 'Requirement labels hidden.');
+        break;
+      case 'signout':
+        Auth.signOut();
+        editingProject = false;
+        queueToast('You have signed out.');
+        go('/signin');
+        break;
+      case 'fill-demo':
+        $('#si-email').value = DEMO.email;
+        $('#si-password').value = DEMO.password;
+        $('#f-signin button[type="submit"]').focus();
+        toast('Demo details filled in. Press Sign in.');
+        break;
+      case 'toggle-pw': {
+        const input = document.getElementById(btn.dataset.target);
+        const show = input.type === 'password';
+        input.type = show ? 'text' : 'password';
+        btn.setAttribute('aria-pressed', String(show));
+        btn.textContent = show ? 'Hide' : 'Show';
+        break;
+      }
+      case 'edit-project':
+        editingProject = true; render('#pr-name'); break;
+      case 'cancel-edit-project':
+        editingProject = false; render('[data-action="edit-project"]'); break;
+      case 'move':
+        moveTicket(btn.dataset.id, btn.dataset.to, btn.dataset.dir); break;
+      case 'delete-ticket': {
+        const t = Store.ticketById(btn.dataset.id);
+        if (!t) break;
+        const ok = await confirmDialog({ title: 'Delete this ticket?', message: `“${t.title}” will be removed from the board. This can’t be undone.`, confirmLabel: 'Delete ticket' });
+        if (!ok) break;
+        Store.removeTicket(t.id);
+        Store.touchProject(t.projectId);
+        queueToast(`Deleted “${t.title}”.`);
+        render(`.column[data-status="${t.status}"] h2`);
+        const h = $(`.column[data-status="${t.status}"] h2`); if (h) { h.setAttribute('tabindex', '-1'); h.focus(); }
+        break;
+      }
+      case 'edit-member':
+        openEditMember(btn.dataset.id); break;
+      case 'remove-member': {
+        const c = context();
+        const u = Store.userById(btn.dataset.id);
+        if (!u) break;
+        const ok = await confirmDialog({ title: `Remove ${u.name}?`, message: `${u.name} will be removed from ${c.team.name} and their tickets will become unassigned. Their name and email are deleted.`, confirmLabel: 'Remove member' });
+        if (!ok) break;
+        Store.removeMember(u.id, c.team.id);
+        queueToast(`${u.name} was removed from the team.`);
+        render('#members-h');
+        const h = $('#members-h'); if (h) { h.setAttribute('tabindex', '-1'); h.focus(); }
+        break;
+      }
+      case 'close-dialog':
+        dlg.close('cancel'); break;
+      case 'save-accent':
+        saveAccent(); break;
+      case 'reset-accent':
+        Store.setPrefs(prefKey(), { accent: DEFAULT_ACCENT });
+        queueToast('Accent colour reset to the default blue.');
+        render('[data-action="reset-accent"]');
+        break;
+      case 'reset-demo': {
+        const ok = await confirmDialog({ title: 'Reset demo data?', message: 'All changes you made will be lost and you will be signed out.', confirmLabel: 'Reset data' });
+        if (!ok) break;
+        await Store.reset();
+        editingProject = false;
+        queueToast('Demo data restored. Sign in with the demo account.');
+        go('/signin');
+        break;
+      }
+    }
+  });
+
+  window.addEventListener('hashchange', router);
+
+  /* =========================================================
+     START
+     ========================================================= */
+  (async function start() {
+    await Store.init();
+    showReqs = Store.ui('showReqs', false);
+    document.body.classList.toggle('show-reqs', showReqs);
+    applyPrefs();
+    router();
+  })();
+})();
+</script>
+</body>
+</html>
